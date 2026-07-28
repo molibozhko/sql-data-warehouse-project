@@ -202,7 +202,7 @@ SELECT
   sls_price
 FROM bronze.crm_sales_details
 WHERE sls_cust_id NOT IN (SELECT cst_id FROM silver.crm_cust_info);
--- WHERE sls_prd_key NOT IN (SELECT prd_key FROM silver.crm_cust_info);
+-- WHERE sls_prd_key NOT IN (SELECT prd_key FROM silver.crm_prd_info);
 
 -- Check for Invalid Dates
 SELECT
