@@ -189,7 +189,7 @@ SELECT
 FROM bronze.crm_sales_details
 WHERE sls_ord_num != TRIM(sls_ord_num);
 
--- Expectation: No Results
+-- Expectation: No Results (we should chrck in other tables, which could be joined on these keys)
 SELECT
   sls_ord_num,
   sls_prd_key,
@@ -204,12 +204,13 @@ FROM bronze.crm_sales_details
 WHERE sls_cust_id NOT IN (SELECT cst_id FROM silver.crm_cust_info);
 -- WHERE sls_prd_key NOT IN (SELECT prd_key FROM silver.crm_prd_info);
 
--- Check for Invalid Dates
+-- Check for Invalid Dates (checking whether we have negative valuees or not)
 SELECT
   sls_order_dt
 FROM bronze.crm_sales_details
 WHERE sls_order_dt < 0;
 
+-- Check for Invalid Dates (checking whether we have zero valuees or not)
 SELECT
   sls_order_dt
 FROM bronze.crm_sales_details
@@ -221,12 +222,34 @@ SELECT
 FROM bronze.crm_sales_details
 WHERE sls_order_dt <= 0;
 
+-- Checking all column of date
+SELECT
+  NULLIF(sls_order_dt,0) sls_order_dt
+FROM bronze.crm_sales_details
+-- Dates should include not more than 8 symbols (according to that how date is presented - length of date must be 8)
+
+-- Replacing 0 values on NULL (this func returns NULL if two given values are equal, otherwise it returns first expression)
 SELECT
   NULLIF(sls_order_dt,0) sls_order_dt
 FROM bronze.crm_sales_details
 WHERE sls_order_dt <= 0 OR LEN(sls_order_dt) != 8;
 
--- Final full check
+-- Check for outliers by validating the boundaries of the date range
+-- >> Also order_dates/shipping/due_date shouldn't be more than future, for example - 20500101
+SELECT
+  NULLIF(sls_order_dt,0) sls_order_dt
+FROM bronze.crm_sales_details
+WHERE sls_order_dt > 20500101;
+
+SELECT
+  NULLIF(sls_order_dt,0) sls_order_dt
+FROM bronze.crm_sales_details
+WHERE sls_order_dt > 20500101
+OR sls_order_dt < 19000101;
+
+-- Finding all of garbage with dates
+-- >>  We should add all of checks for validating dates (we don't need a dates which length less than 8 and with other inconsistencies)
+-- >>  Final full check dates
 SELECT
   NULLIF(sls_order_dt,0) sls_order_dt
 FROM bronze.crm_sales_details
@@ -235,6 +258,7 @@ OR LEN(sls_order_dt) != 8
 OR sls_order_dt > 20500101
 OR sls_order_dt < 19000101;
 
+-- Checking the rest columns with dates for finding uncorrect dates
 -- Final full check sls_ship_dt
 SELECT
   NULLIF(sls_ship_dt,0) sls_ship_dt
@@ -244,6 +268,7 @@ OR LEN(sls_ship_dt) != 8
 OR sls_ship_dt > 20500101
 OR sls_ship_dt < 19000101;
 
+-- Checking the rest columns with dates for finding uncorrect dates
 -- Final full check sls_due_dt
 SELECT
   NULLIF(sls_due_dt,0) sls_due_dt
@@ -254,14 +279,16 @@ OR sls_due_dt > 20500101
 OR sls_due_dt < 19000101;
 
 -- Check for Invalid Date Orders
+-- >>  checking for broken Logic, Order Date must always be erlier than the Shipping Date or Due Date
 SELECT
 *
 FROM bronze.crm_sales_details
 WHERE sls_order_dt > sls_ship_dt OR sls_order_dt > sls_due_dt;
 
 -- Check Data Consistency: Between Sales, Quantity, and Price
+-- >> Should be consudered the rull - Sales = sls_quantity * sls_price
 -- >> Sales = Quantity * Price
--->> Values must not be NULL, zero, or negative
+-- >> Values must not be NULL, zero, or negative
 SELECT DISTINCT
 sls_sales,
 sls_quantity,
@@ -271,7 +298,15 @@ WHERE sls_sales != sls_quantity * sls_price
 OR sls_sales IS NULL OR sls_quantity IS NULL OR sls_price IS NULL
 OR sls_sales <= 0 OR sls_quantity <= 0 OR sls_price <=0
 ORDER BY sls_sales, sls_quantity, sls_price;
+-- According to what we have (negative values, zeros and nulls) - need to talk with someone from the bisness 
+-- or source system and discuss, two solution:
+	-- data issues will be fixed direct in source system
+	-- data issues has to be fixed in data warehouse 
 
+-- We choosing all of broken data and following the rules:
+-- If Sales is negative, zero, or null, derive it using Quantity and Price.
+-- If Price is zero, or null, calculate it using Sales and Quantity. 
+-- If Price is negative, convert it to a positive value
 SELECT DISTINCT
 sls_sales as old_sls_sales,
 sls_quantity,
@@ -289,7 +324,6 @@ WHERE sls_sales != sls_quantity * sls_price
 OR sls_sales IS NULL OR sls_quantity IS NULL OR sls_price IS NULL
 OR sls_sales <= 0 OR sls_quantity <= 0 OR sls_price <=0
 ORDER BY sls_sales, sls_quantity, sls_price;
-
 
 -- Final querry 
 SELECT
@@ -316,6 +350,20 @@ CASE WHEN sls_price IS NULL OR sls_price <= 0
 END AS sls_price
 FROM bronze.crm_sales_details;
 
+-- Because of changing format of dates (from integer to Date) - we should check the DDL 
+IF OBJECT_ID ('silver.crm_sales_details', 'U') IS NOT NULL
+DROP TABLE silver.crm_sales_details;
+CREATE TABLE silver.crm_sales_details ( 
+  sls_ord_num NVARCHAR(50) ,
+  sls_prd_key NVARCHAR(50),
+  sls_cust_id INT,
+  sis_order_dt DATE, -- Changing the data type from INT to Date
+  sls_ship_dt DATE, -- Changing the data type from INT to Date
+  s1s_due_dt DATE, -- Changing the data type from INT to Date
+  sls_sales INT,
+  sls_quantity INT, 
+  sls_price INT
+);
 ===================================================================
 ﻿Checking 'silver,erp_cust_az12'
 ===================================================================
