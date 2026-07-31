@@ -721,16 +721,16 @@ FROM bronze.erp_cust_az12;
 
 -- Final querry
 SELECT
-CASE WHEN cid LIKE 'NAS%' THEN SUBSTRING(cid, 4, LEN(cid))
-	ELSE cid
-END AS cid,
-CASE WHEN bdate > GETDATE() THEN NULL 
-ELSE bdate
-END AS bdate,
-CASE WHEN UPPER(TRIM(gen)) IN ('F', 'FEMALE') THEN 'Female'
-	WHEN UPPER(TRIM(gen)) IN ('M', 'MALE') THEN 'Male'
-	ELSE 'n/a'
-END AS gen
+	CASE WHEN cid LIKE 'NAS%' THEN SUBSTRING(cid, 4, LEN(cid)) -- Remove 'NAS' prefix present
+		ELSE cid
+	END AS cid,
+	CASE WHEN bdate > GETDATE() THEN NULL 
+	ELSE bdate
+	END AS bdate, -- Set future birthdates to NULL
+	CASE WHEN UPPER(TRIM(gen)) IN ('F', 'FEMALE') THEN 'Female'
+		WHEN UPPER(TRIM(gen)) IN ('M', 'MALE') THEN 'Male'
+		ELSE 'n/a'
+	END AS gen -- Normalize gender values and handle unknown cases
 FROM bronze.erp_cust_az12;
 
 ===================================================================
@@ -745,6 +745,108 @@ FROM silver.erp_cust_az12;
 
 -- Final look
 SELECT * FROM silver.erp_cust_az12;
+
+===================================================================
+﻿Checking 'silver,erp_loc_a101'
+===================================================================
+
+SELECT *
+FROM bronze.erp_loc_a101;
+
+SELECT 
+cid,
+cntry
+FROM bronze.erp_loc_a101;
+
+SELECT cst_key FROM silver.crm_cust_info;
+
+SELECT
+REPLACE(cid, '-', '') cid,
+cntry 
+FROM bronze.erp_loc_a101;
+
+-- Checking that code is working (it should be no results)
+SELECT
+REPLACE(cid, '-', '') cid,
+cntry 
+FROM bronze.erp_loc_a101
+WHERE REPLACE(cid, '-', '') NOT IN 
+(SELECT cst_key FROM silver.crm_cust_info);
+
+-- Data Standartization and Consistency
+SELECT DISTINCT cntry
+FROM bronze.erp_loc_a101
+ORDER BY cntry;
+
+SELECT DISTINCT 
+cntry AS old_cntry,
+CASE WHEN TRIM(cntry) = 'DE' THEN 'Germany'
+	WHEN TRIM(cntry) IN ('US', 'USA') THEN 'United States'
+	WHEN TRIM(cntry) = '' OR cntry IS NULL THEN 'n/a'
+	ELSE TRIM(cntry)
+END AS cntry
+FROM bronze.erp_loc_a101;
+
+-- Final querry
+SELECT
+REPLACE(cid, '-', '') cid,
+CASE WHEN TRIM(cntry) = 'DE' THEN 'Germany'
+	WHEN TRIM(cntry) IN ('US', 'USA') THEN 'United States'
+	WHEN TRIM(cntry) = '' OR cntry IS NULL THEN 'n/a'
+	ELSE TRIM(cntry)
+END AS cntry -- Normalize and Handle missing or blank country codes
+FROM bronze.erp_loc_a101;
+
+===================================================================
+-- Qality check of the Silver Table
+
+SELECT DISTINCT cntry
+FROM silver.erp_loc_a101
+ORDER BY cntry;
+
+-- Final check
+SELECT * FROM silver.erp_loc_a101;
+
+===================================================================
+﻿Checking 'silver,erp_px_cat_g1v2'
+===================================================================
+SELECT
+	id,
+	cat,
+	subcat,
+	maintenance
+FROM bronze.erp_px_cat_g1v2;
+
+-- Check for unwanted Spaces
+SELECT *
+FROM bronze.erp_px_cat_g1v2
+WHERE cat != TRIM(cat);
+
+-- Check for unwanted Spaces
+SELECT *
+FROM bronze.erp_px_cat_g1v2
+WHERE cat != TRIM(cat) OR subcat != TRIM(subcat) OR maintenance != TRIM(maintenance);
+
+-- Data Standartization & Consistency
+SELECT DISTINCT
+cat
+FROM bronze.erp_px_cat_g1v2;
+
+-- Data Standartization & Consistency
+SELECT DISTINCT
+subcat
+FROM bronze.erp_px_cat_g1v2;
+
+SELECT DISTINCT
+maintenance
+FROM bronze.erp_px_cat_g1v2;
+
+===================================================================
+-- Qality check of the Silver Table
+
+SELECT * FROM silver.erp_px_cat_g1v2;
+
+
 
 
 
