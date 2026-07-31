@@ -616,10 +616,135 @@ ORDER BY sls_sales, sls_quantity, sls_price;
 SELECT *
 FROM silver.crm_sales_details
 
+
 ===================================================================
 ﻿Checking 'silver,erp_cust_az12'
 ===================================================================
 
+SELECT * FROM bronze.erp_cust_az12;
+
+SELECT
+	cid,
+	bdate,
+	gen
+FROM bronze.erp_cust_az12;
+
+SELECT * FROM silver.crm_cust_info; -- we can compare two tables to understand how id from bronze.erp_cust_az12 and 
+-- cst_key from bronze.erp_cust_az12 could be joined, as we see there is extra charecters in id from bronze.erp_cust_az12 
+
+SELECT
+	cid,
+	bdate,
+	gen
+FROM bronze.erp_cust_az12
+WHERE cid LIKE '%AW00011000%'; -- we are looking for specific cid from bronze.erp_cust_az12 which has been shown in silver.crm_cust_info
+							   -- and we find it, but with three extra characters in begining (NAS)
+SELECT
+	cid,
+	bdate,
+	gen
+FROM bronze.erp_cust_az12; -- If we again check the data we can conclude than only old data have extra character and new data doesen't have it;
+						   -- >>  we can delete extra NAS
+
+SELECT
+CASE WHEN cid LIKE 'NAS%' THEN SUBSTRING(cid, 4, LEN(cid))
+	ELSE cid
+END AS cid,
+bdate,
+gen
+FROM bronze.erp_cust_az12;
+
+-- Expectation: we are not able to find any unmatching data btw the bronze.erp_cust_az12 and silver.crm_cust_info after transformation;
+SELECT
+cid,
+CASE WHEN cid LIKE 'NAS%' THEN SUBSTRING(cid, 4, LEN(cid))
+	ELSE cid
+END AS cid,
+bdate,
+gen
+FROM bronze.erp_cust_az12
+WHERE CASE WHEN cid LIKE 'NAS%' THEN SUBSTRING(cid, 4, LEN(cid))
+	ELSE cid
+END NOT IN (SELECT DISTINCT cst_key FROM silver.crm_cust_info); 
+
+-- If we change where clause - we will see al of uncorrect cid)
+-- Therefore It seems that previous code is working perfectly
+SELECT
+cid,
+CASE WHEN cid LIKE 'NAS%' THEN SUBSTRING(cid, 4, LEN(cid))
+	ELSE cid
+END AS cid,
+bdate,
+gen
+FROM bronze.erp_cust_az12
+WHERE  cid
+NOT IN (SELECT DISTINCT cst_key FROM silver.crm_cust_info);
+
+-- Identify Out-Of_Range Dates
+-- Check for very old customers
+SELECT DISTINCT
+	bdate
+FROM bronze.erp_cust_az12
+WHERE bdate < '1924-01-01'; -- It look likes that we have a lot of customers, that are older than 100 years
+
+-- Check the birthdays in the future
+SELECT DISTINCT
+	bdate
+FROM bronze.erp_cust_az12
+WHERE bdate < '1924-01-01' OR bdate > GETDATE(); -- as we see we have some dates which are invalid (birthdays in the future)
+-- Solution:
+-- report to the source system in order to correct it
+-- leave it as it is, as a bad data
+-- clean it up, by replacing bad dates with a NULL or replacing only that days which is extreme
+
+SELECT DISTINCT
+	bdate
+FROM silver.erp_cust_az12
+WHERE bdate < '1924-01-01' OR bdate > GETDATE();
+
+SELECT
+CASE WHEN bdate > GETDATE() THEN NULL 
+ELSE bdate
+END AS bdate
+FROM silver.erp_cust_az12; 
+
+-- Data Standartization & Consistency 
+SELECT DISTINCT gen
+FROM bronze.erp_cust_az12;
+
+SELECT gen,
+CASE WHEN UPPER(TRIM(gen)) IN ('F', 'FEMALE') THEN 'Female'
+	WHEN UPPER(TRIM(gen)) IN ('M', 'MALE') THEN 'Male'
+	ELSE 'n/a'
+END AS gen
+FROM bronze.erp_cust_az12;
+
+-- Final querry
+SELECT
+CASE WHEN cid LIKE 'NAS%' THEN SUBSTRING(cid, 4, LEN(cid))
+	ELSE cid
+END AS cid,
+CASE WHEN bdate > GETDATE() THEN NULL 
+ELSE bdate
+END AS bdate,
+CASE WHEN UPPER(TRIM(gen)) IN ('F', 'FEMALE') THEN 'Female'
+	WHEN UPPER(TRIM(gen)) IN ('M', 'MALE') THEN 'Male'
+	ELSE 'n/a'
+END AS gen
+FROM bronze.erp_cust_az12;
+
+===================================================================
+-- Qality check of the Silver Table
+SELECT DISTINCT
+bdate
+FROM silver.erp_cust_az12
+WHERE bdate < '1924-01-01' OR bdate > GETDATE();
+
+SELECT DISTINCT gen
+FROM silver.erp_cust_az12;
+
+-- Final look
+SELECT * FROM silver.erp_cust_az12;
 
 
 
