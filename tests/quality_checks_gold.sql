@@ -22,7 +22,7 @@ SELECT
 *
 FROM silver.crm_cust_info;
 
--- Now we selecting the columns which should be presented in the gold layer
+-- Now we selecting columns which should be presented in the gold layer
 SELECT 
 	ci.cst_id,
 	ci.cst_key,
@@ -40,8 +40,7 @@ LEFT JOIN silver.erp_cust_az12 ca
 LEFT JOIN silver.erp_loc_a101 la
   ON ci.cst_key = la.cid;
 
--- After Joining table, check if any duplicates were introduced 
--- by the join logic
+-- After Joining table, we double check if any duplicates were introduced 
 SELECT cst_id, COUNT(*) FROM
 	(SELECT 
 		ci.cst_id,
@@ -69,8 +68,6 @@ SELECT DISTINCT
 FROM silver.crm_cust_info ci
 LEFT JOIN silver.erp_cust_az12 ca
   ON ci.cst_key = ca.cid
-LEFT JOIN silver.erp_loc_a101 la
-  ON ci.cst_key = la.cid
 ORDER BY 1, 2; -- We have different scenarios, the data could be mistakenly differenrt, also NULLS has appeared bcz of join
 
 -- When the data is different from 2 sourses, we have to ask experts about it - which soursce the master for this values?
@@ -84,29 +81,9 @@ SELECT DISTINCT
 FROM silver.crm_cust_info ci
 LEFT JOIN silver.erp_cust_az12 ca
   ON ci.cst_key = ca.cid
-LEFT JOIN silver.erp_loc_a101 la
-  ON ci.cst_key = la.cid
 ORDER BY 1, 2;
 
 -- Final querry 
-SELECT 
-	ci.cst_id,
-	ci.cst_key,
-	ci.cst_firstname,
-	ci.cst_lastname,
-	ci.cst_marital_status,
-	CASE WHEN ci.cst_gndr != 'n/a' THEN ci.cst_gndr -- CRM is the master for gender info
-		ELSE COALESCE(ca.gen, 'n/a')
-	END AS new_gen,
-	ci.cst_create_date,
-	ca.bdate,
-	la.cntry
-FROM silver.crm_cust_info ci
-LEFT JOIN silver.erp_cust_az12 ca
-  ON ci.cst_key = ca.cid
-LEFT JOIN silver.erp_loc_a101 la
-  ON ci.cst_key = la.cid;
-
 SELECT 
 	ci.cst_id,
 	ci.cst_key,
@@ -193,6 +170,7 @@ LEFT JOIN silver.erp_loc_a101 la
 
 -- Quality Check of the Gold Table
 SELECT * FROM gold.dim_customers;
+
 SELECT distinct gender FROM gold.dim_customers;
 
 -- ===================================================================
