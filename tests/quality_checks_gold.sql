@@ -106,7 +106,7 @@ LEFT JOIN silver.erp_loc_a101 la
 -- General Principles
 -- >> Naming Conventions: Use snake_case, with lowercase letters and underscores (_) to separate words.
 -- >> Language: Use English for all names
--- Avoid Reserved Words: Do not use SQL reserved words as object names
+-- >> Avoid Reserved Words: Do not use SQL reserved words as object names
 SELECT 
 	ci.cst_id AS customer_id,
 	ci.cst_key AS customer_number,
@@ -303,7 +303,7 @@ FROM silver.crm_sales_details sd;
 
 -- Because this table keys, dates, measures - It's fact table;
 -- Building Fact: use the dimension's surrogate keys instead of IDs to easily connect facts with dimensions
--- We have to put the surrogate keys from the dimensions  in the facts
+-- We have to put the surrogate keys from the dimensions in the facts
 SELECT
   sd.sls_ord_num,
   pr.product_key, -- we don't need the original product_key (sd.sls_prd_key) from the source system, we need the
